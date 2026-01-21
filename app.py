@@ -368,7 +368,10 @@ def main():
         
         # Show ready accounts with checkboxes
         for entry in ready_entries:
-            col1, col2, col3 = st.columns([0.5, 8.5, 1])
+            # Get attachment count
+            alert_attachment_count = db.get_attachment_count(entry['id'])
+            
+            col1, col2, col3, col4 = st.columns([0.5, 7.5, 1, 1])
             
             with col1:
                 is_done = st.checkbox(
@@ -387,6 +390,7 @@ def main():
                 broker_text = entry.get('broker', '')
                 acct_count = alert_account_counts.get(entry['account'].upper(), 1)
                 count_text = f" (x{acct_count})" if acct_count > 1 else ""
+                attachment_text = f" | 📎 {alert_attachment_count}" if alert_attachment_count > 0 else ""
                 st.markdown(f"""
                 <div class="action-item">
                     <strong style="color: #ff0040;">ACCT: {entry['account']}{count_text}</strong> | 
@@ -395,13 +399,42 @@ def main():
                     HELD: {entry['held_in']} | 
                     <span style="color: #ff0040;">{day_text}</span>
                     {f" | NOTE: {entry['comments']}" if entry['comments'] else ""}
+                    <span style="color: #00ff41;">{attachment_text}</span>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col3:
+                # Show attachment button if there are attachments
+                if alert_attachment_count > 0:
+                    if st.button(f"📎 {alert_attachment_count}", key=f"att_btn_{entry['id']}", help="View attachments"):
+                        st.session_state[f"show_att_{entry['id']}"] = not st.session_state.get(f"show_att_{entry['id']}", False)
+                else:
+                    st.markdown("")
+            
+            with col4:
                 if st.button("DEL", key=f"del_alert_{entry['id']}"):
+                    db.delete_attachments_for_entry(entry["id"])
                     db.delete_entry(entry["id"])
                     st.rerun()
+            
+            # Show attachment expander if toggled or if there are attachments
+            if alert_attachment_count > 0:
+                with st.expander(f"📎 Attachments for {entry['account']}", expanded=st.session_state.get(f"show_att_{entry['id']}", False)):
+                    attachments = db.get_attachments(entry['id'])
+                    for att in attachments:
+                        att_col1, att_col2 = st.columns([3, 1])
+                        with att_col1:
+                            st.markdown(f"📄 {att['filename']}")
+                        with att_col2:
+                            filename, ftype, fdata = db.get_attachment_data(att['id'])
+                            if fdata:
+                                st.download_button(
+                                    "⬇️ Download",
+                                    data=fdata,
+                                    file_name=filename,
+                                    mime=ftype or "application/octet-stream",
+                                    key=f"alert_download_{att['id']}"
+                                )
     
     # Summary metrics
     st.markdown("---")
