@@ -448,7 +448,7 @@ def main():
         st.markdown("**📎 ATTACHMENT (optional)**")
         uploaded_file = st.file_uploader(
             "Attach documentation (email, PDF, image)",
-            type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx'],
+            type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx', 'msg', 'eml'],
             help="Max 5MB - Attach trade confirmation, email, etc.",
             label_visibility="collapsed"
         )
@@ -670,7 +670,7 @@ def main():
                 st.markdown("**Add New Attachment:**")
                 new_attachment = st.file_uploader(
                     "Upload file",
-                    type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx'],
+                    type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx', 'msg', 'eml'],
                     key=f"upload_{entry['id']}",
                     label_visibility="collapsed"
                 )
