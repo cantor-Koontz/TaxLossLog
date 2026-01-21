@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from contextlib import contextmanager
 from typing import Optional
 import os
+import base64
 
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), "tax_loss.db")
 
@@ -59,6 +60,22 @@ def init_database():
         """)
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_completed ON entries(completed)
+        """)
+        
+        # Attachments table for file storage
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_id INTEGER NOT NULL,
+                filename TEXT NOT NULL,
+                file_type TEXT,
+                file_data TEXT NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_attachment_entry ON attachments(entry_id)
         """)
 
 
@@ -287,6 +304,80 @@ def get_all_account_counts() -> dict:
             GROUP BY UPPER(account)
         """).fetchall()
         return {row['account']: row['count'] for row in rows}
+
+
+# ============== ATTACHMENT FUNCTIONS ==============
+
+def add_attachment(entry_id: int, filename: str, file_type: str, file_data: bytes) -> int:
+    """
+    Add an attachment to an entry.
+    
+    Args:
+        entry_id: The ID of the entry to attach to
+        filename: Original filename
+        file_type: MIME type of the file
+        file_data: Raw file bytes
+        
+    Returns:
+        The ID of the newly created attachment
+    """
+    encoded_data = base64.b64encode(file_data).decode('utf-8')
+    
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            INSERT INTO attachments (entry_id, filename, file_type, file_data)
+            VALUES (?, ?, ?, ?)
+        """, (entry_id, filename, file_type, encoded_data))
+        return cursor.lastrowid
+
+
+def get_attachments(entry_id: int) -> list[dict]:
+    """Get all attachments for an entry (metadata only, no file data)."""
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT id, entry_id, filename, file_type, uploaded_at 
+            FROM attachments WHERE entry_id = ?
+            ORDER BY uploaded_at DESC
+        """, (entry_id,)).fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_attachment_count(entry_id: int) -> int:
+    """Get the number of attachments for an entry."""
+    with get_connection() as conn:
+        result = conn.execute("""
+            SELECT COUNT(*) FROM attachments WHERE entry_id = ?
+        """, (entry_id,)).fetchone()
+        return result[0] if result else 0
+
+
+def get_attachment_data(attachment_id: int) -> tuple:
+    """
+    Get attachment file data for download.
+    
+    Returns:
+        Tuple of (filename, file_type, file_bytes) or (None, None, None) if not found
+    """
+    with get_connection() as conn:
+        row = conn.execute("""
+            SELECT filename, file_type, file_data 
+            FROM attachments WHERE id = ?
+        """, (attachment_id,)).fetchone()
+        if row:
+            return row['filename'], row['file_type'], base64.b64decode(row['file_data'])
+        return None, None, None
+
+
+def delete_attachment(attachment_id: int):
+    """Delete an attachment."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM attachments WHERE id = ?", (attachment_id,))
+
+
+def delete_attachments_for_entry(entry_id: int):
+    """Delete all attachments for an entry."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM attachments WHERE entry_id = ?", (entry_id,))
 
 
 # Initialize database on module import

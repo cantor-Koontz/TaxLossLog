@@ -259,6 +259,46 @@ MATRIX_CSS = """
         display: none !important;
     }
     
+    /* File uploader styling */
+    [data-testid="stFileUploader"] {
+        background: rgba(0, 255, 65, 0.02) !important;
+        border: 1px dashed #00ff41 !important;
+        border-radius: 5px !important;
+        padding: 10px !important;
+    }
+    
+    [data-testid="stFileUploader"] label {
+        color: #00ff41 !important;
+    }
+    
+    [data-testid="stFileUploader"] section {
+        background: transparent !important;
+    }
+    
+    [data-testid="stFileUploader"] button {
+        background: #001a00 !important;
+        color: #00ff41 !important;
+        border: 1px solid #00ff41 !important;
+    }
+    
+    /* Download button styling */
+    .stDownloadButton > button {
+        background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
+        color: #00ff41 !important;
+        border: 1px solid #00ff41 !important;
+        font-family: 'Share Tech Mono', monospace !important;
+    }
+    
+    /* Expander styling */
+    [data-testid="stExpander"] {
+        background: rgba(0, 255, 65, 0.02) !important;
+        border: 1px solid #003300 !important;
+    }
+    
+    [data-testid="stExpander"] summary {
+        color: #00ff41 !important;
+    }
+    
     /* Glowing border animation */
     .glow-box {
         animation: glow 2s ease-in-out infinite alternate;
@@ -404,13 +444,23 @@ def main():
         with row2_col3:
             comments = st.text_input("COMMENTS (optional)", placeholder="Any notes...")
         
+        # Row 3: File attachment
+        st.markdown("**📎 ATTACHMENT (optional)**")
+        uploaded_file = st.file_uploader(
+            "Attach documentation (email, PDF, image)",
+            type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx'],
+            help="Max 5MB - Attach trade confirmation, email, etc.",
+            label_visibility="collapsed"
+        )
+        
         submitted = st.form_submit_button(">> EXECUTE INSERT <<", type="primary", use_container_width=True)
         
         if submitted:
             if not account or not tickers or not held_in or not broker:
                 st.error("ERROR: REQUIRED FIELDS MISSING [ACCOUNT, TICKERS, HELD_IN, BROKER]")
             else:
-                db.add_entry(
+                # Create the entry
+                new_entry_id = db.add_entry(
                     account=account.strip(),
                     tickers=tickers.strip(),
                     held_in=held_in.strip(),
@@ -418,7 +468,23 @@ def main():
                     broker=broker,
                     comments=comments.strip()
                 )
-                st.success(f"SUCCESS: ENTRY INSERTED FOR ACCOUNT {account}")
+                
+                # Add attachment if provided
+                if uploaded_file is not None:
+                    file_data = uploaded_file.read()
+                    if len(file_data) <= 5 * 1024 * 1024:  # 5MB limit
+                        db.add_attachment(
+                            entry_id=new_entry_id,
+                            filename=uploaded_file.name,
+                            file_type=uploaded_file.type or "application/octet-stream",
+                            file_data=file_data
+                        )
+                        st.success(f"SUCCESS: ENTRY + ATTACHMENT INSERTED FOR ACCOUNT {account}")
+                    else:
+                        st.warning("Attachment skipped - file exceeds 5MB limit")
+                        st.success(f"SUCCESS: ENTRY INSERTED FOR ACCOUNT {account}")
+                else:
+                    st.success(f"SUCCESS: ENTRY INSERTED FOR ACCOUNT {account}")
                 st.rerun()
     
     # Active Entries Table (non-completed only)
@@ -461,7 +527,7 @@ def main():
         account_counts = db.get_all_account_counts()
         
         # Column headers
-        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10 = st.columns([0.4, 1.3, 1.8, 1, 1, 1, 1, 0.6, 0.8, 0.4])
+        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10, hcol11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.5, 0.4])
         with hcol1:
             st.markdown("**✓**")
         with hcol2:
@@ -481,6 +547,8 @@ def main():
         with hcol9:
             st.markdown("**STATUS**")
         with hcol10:
+            st.markdown("**📎**")
+        with hcol11:
             st.markdown("**DEL**")
         
         st.markdown("---")
@@ -499,7 +567,10 @@ def main():
             else:
                 days_display = str(days)
             
-            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([0.4, 1.3, 1.8, 1, 1, 1, 1, 0.6, 0.8, 0.4])
+            # Get attachment count for this entry
+            attachment_count = db.get_attachment_count(entry['id'])
+            
+            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.5, 0.4])
             
             with col1:
                 is_completed = st.checkbox(
@@ -555,9 +626,68 @@ def main():
                     st.markdown(":gray[DONE]")
             
             with col10:
+                # Attachment indicator
+                if attachment_count > 0:
+                    st.markdown(f":green[📎{attachment_count}]")
+                else:
+                    st.markdown(":gray[—]")
+            
+            with col11:
                 if st.button("X", key=f"del_{entry['id']}"):
+                    db.delete_attachments_for_entry(entry["id"])  # Delete attachments first
                     db.delete_entry(entry["id"])
                     st.rerun()
+            
+            # Attachment expander for this entry
+            with st.expander(f"📎 Attachments for {entry['account']}", expanded=False):
+                attachments = db.get_attachments(entry['id'])
+                
+                if attachments:
+                    st.markdown("**Existing Files:**")
+                    for att in attachments:
+                        att_col1, att_col2, att_col3 = st.columns([3, 1, 0.5])
+                        with att_col1:
+                            st.markdown(f"📄 {att['filename']}")
+                        with att_col2:
+                            # Download button
+                            filename, ftype, fdata = db.get_attachment_data(att['id'])
+                            if fdata:
+                                st.download_button(
+                                    "⬇️ Download",
+                                    data=fdata,
+                                    file_name=filename,
+                                    mime=ftype or "application/octet-stream",
+                                    key=f"download_{att['id']}"
+                                )
+                        with att_col3:
+                            if st.button("🗑️", key=f"del_att_{att['id']}", help="Delete attachment"):
+                                db.delete_attachment(att['id'])
+                                st.rerun()
+                else:
+                    st.markdown(":gray[No attachments]")
+                
+                st.markdown("---")
+                st.markdown("**Add New Attachment:**")
+                new_attachment = st.file_uploader(
+                    "Upload file",
+                    type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx'],
+                    key=f"upload_{entry['id']}",
+                    label_visibility="collapsed"
+                )
+                if new_attachment is not None:
+                    if st.button("📎 Save Attachment", key=f"save_att_{entry['id']}"):
+                        file_data = new_attachment.read()
+                        if len(file_data) <= 5 * 1024 * 1024:  # 5MB limit
+                            db.add_attachment(
+                                entry_id=entry['id'],
+                                filename=new_attachment.name,
+                                file_type=new_attachment.type or "application/octet-stream",
+                                file_data=file_data
+                            )
+                            st.success(f"Attachment '{new_attachment.name}' saved!")
+                            st.rerun()
+                        else:
+                            st.error("File exceeds 5MB limit")
         
         st.markdown("---")
         st.caption(f">> Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
