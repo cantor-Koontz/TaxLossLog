@@ -230,12 +230,33 @@ MATRIX_CSS = """
         color: #00ff41 !important;
     }
     
-    /* Code blocks */
+    /* Code blocks - inline */
     code {
         background: rgba(0, 255, 65, 0.1) !important;
         color: #00ff41 !important;
         border: 1px solid #003300 !important;
         padding: 2px 6px !important;
+    }
+    
+    /* Streamlit code blocks (st.code) */
+    [data-testid="stCode"],
+    .stCode,
+    pre {
+        background: #001a00 !important;
+        border: 1px solid #00ff41 !important;
+    }
+    
+    [data-testid="stCode"] code,
+    .stCode code,
+    pre code {
+        background: transparent !important;
+        color: #00ff41 !important;
+        font-family: 'Share Tech Mono', monospace !important;
+    }
+    
+    /* Code copy button */
+    [data-testid="stCode"] button {
+        display: none !important;
     }
     
     /* Glowing border animation */
