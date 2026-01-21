@@ -366,10 +366,17 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
+        # Column headers for ACTION REQUIRED
+        hcol1, hcol2, hcol3, hcol4 = st.columns([0.5, 7.5, 1, 1])
+        with hcol3:
+            st.markdown("**DOCS**")
+        with hcol4:
+            st.markdown("**DEL**")
+        
         # Show ready accounts with checkboxes
         for entry in ready_entries:
-            # Get attachment count
-            alert_attachment_count = db.get_attachment_count(entry['id'])
+            # Get attachments for this entry
+            attachments = db.get_attachments(entry['id'])
             
             col1, col2, col3, col4 = st.columns([0.5, 7.5, 1, 1])
             
@@ -390,7 +397,6 @@ def main():
                 broker_text = entry.get('broker', '')
                 acct_count = alert_account_counts.get(entry['account'].upper(), 1)
                 count_text = f" (x{acct_count})" if acct_count > 1 else ""
-                attachment_text = f" | 📎 {alert_attachment_count}" if alert_attachment_count > 0 else ""
                 st.markdown(f"""
                 <div class="action-item">
                     <strong style="color: #ff0040;">ACCT: {entry['account']}{count_text}</strong> | 
@@ -399,42 +405,32 @@ def main():
                     HELD: {entry['held_in']} | 
                     <span style="color: #ff0040;">{day_text}</span>
                     {f" | NOTE: {entry['comments']}" if entry['comments'] else ""}
-                    <span style="color: #00ff41;">{attachment_text}</span>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col3:
-                # Show attachment button if there are attachments
-                if alert_attachment_count > 0:
-                    if st.button(f"📎 {alert_attachment_count}", key=f"att_btn_{entry['id']}", help="View attachments"):
-                        st.session_state[f"show_att_{entry['id']}"] = not st.session_state.get(f"show_att_{entry['id']}", False)
+                # Direct download button for attachment
+                if attachments:
+                    # Get the first (most recent) attachment for direct download
+                    att = attachments[0]
+                    filename, ftype, fdata = db.get_attachment_data(att['id'])
+                    if fdata:
+                        st.download_button(
+                            f"📎 ({len(attachments)})" if len(attachments) > 1 else "📎",
+                            data=fdata,
+                            file_name=filename,
+                            mime=ftype or "application/octet-stream",
+                            key=f"alert_dl_{entry['id']}",
+                            help=f"Download: {filename}"
+                        )
                 else:
-                    st.markdown("")
+                    st.markdown(":gray[—]")
             
             with col4:
-                if st.button("DEL", key=f"del_alert_{entry['id']}"):
+                if st.button("X", key=f"del_alert_{entry['id']}"):
                     db.delete_attachments_for_entry(entry["id"])
                     db.delete_entry(entry["id"])
                     st.rerun()
-            
-            # Show attachment expander if toggled or if there are attachments
-            if alert_attachment_count > 0:
-                with st.expander(f"📎 Attachments for {entry['account']}", expanded=st.session_state.get(f"show_att_{entry['id']}", False)):
-                    attachments = db.get_attachments(entry['id'])
-                    for att in attachments:
-                        att_col1, att_col2 = st.columns([3, 1])
-                        with att_col1:
-                            st.markdown(f"📄 {att['filename']}")
-                        with att_col2:
-                            filename, ftype, fdata = db.get_attachment_data(att['id'])
-                            if fdata:
-                                st.download_button(
-                                    "⬇️ Download",
-                                    data=fdata,
-                                    file_name=filename,
-                                    mime=ftype or "application/octet-stream",
-                                    key=f"alert_download_{att['id']}"
-                                )
     
     # Summary metrics
     st.markdown("---")
@@ -560,7 +556,7 @@ def main():
         account_counts = db.get_all_account_counts()
         
         # Column headers
-        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10, hcol11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.5, 0.4])
+        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10, hcol11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.6, 0.4])
         with hcol1:
             st.markdown("**✓**")
         with hcol2:
@@ -580,7 +576,7 @@ def main():
         with hcol9:
             st.markdown("**STATUS**")
         with hcol10:
-            st.markdown("**📎**")
+            st.markdown("**DOCS**")
         with hcol11:
             st.markdown("**DEL**")
         
@@ -600,10 +596,10 @@ def main():
             else:
                 days_display = str(days)
             
-            # Get attachment count for this entry
-            attachment_count = db.get_attachment_count(entry['id'])
+            # Get attachments for this entry
+            entry_attachments = db.get_attachments(entry['id'])
             
-            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.5, 0.4])
+            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.6, 0.4])
             
             with col1:
                 is_completed = st.checkbox(
@@ -659,9 +655,19 @@ def main():
                     st.markdown(":gray[DONE]")
             
             with col10:
-                # Attachment indicator
-                if attachment_count > 0:
-                    st.markdown(f":green[📎{attachment_count}]")
+                # Direct download button for attachments
+                if entry_attachments:
+                    att = entry_attachments[0]  # Most recent attachment
+                    filename, ftype, fdata = db.get_attachment_data(att['id'])
+                    if fdata:
+                        st.download_button(
+                            f"📎({len(entry_attachments)})" if len(entry_attachments) > 1 else "📎",
+                            data=fdata,
+                            file_name=filename,
+                            mime=ftype or "application/octet-stream",
+                            key=f"dl_{entry['id']}",
+                            help=f"Download: {filename}"
+                        )
                 else:
                     st.markdown(":gray[—]")
             
@@ -670,57 +676,6 @@ def main():
                     db.delete_attachments_for_entry(entry["id"])  # Delete attachments first
                     db.delete_entry(entry["id"])
                     st.rerun()
-            
-            # Attachment expander for this entry
-            with st.expander(f"📎 Attachments for {entry['account']}", expanded=False):
-                attachments = db.get_attachments(entry['id'])
-                
-                if attachments:
-                    st.markdown("**Existing Files:**")
-                    for att in attachments:
-                        att_col1, att_col2, att_col3 = st.columns([3, 1, 0.5])
-                        with att_col1:
-                            st.markdown(f"📄 {att['filename']}")
-                        with att_col2:
-                            # Download button
-                            filename, ftype, fdata = db.get_attachment_data(att['id'])
-                            if fdata:
-                                st.download_button(
-                                    "⬇️ Download",
-                                    data=fdata,
-                                    file_name=filename,
-                                    mime=ftype or "application/octet-stream",
-                                    key=f"download_{att['id']}"
-                                )
-                        with att_col3:
-                            if st.button("🗑️", key=f"del_att_{att['id']}", help="Delete attachment"):
-                                db.delete_attachment(att['id'])
-                                st.rerun()
-                else:
-                    st.markdown(":gray[No attachments]")
-                
-                st.markdown("---")
-                st.markdown("**Add New Attachment:**")
-                new_attachment = st.file_uploader(
-                    "Upload file",
-                    type=['pdf', 'png', 'jpg', 'jpeg', 'txt', 'doc', 'docx', 'msg', 'eml'],
-                    key=f"upload_{entry['id']}",
-                    label_visibility="collapsed"
-                )
-                if new_attachment is not None:
-                    if st.button("📎 Save Attachment", key=f"save_att_{entry['id']}"):
-                        file_data = new_attachment.read()
-                        if len(file_data) <= 5 * 1024 * 1024:  # 5MB limit
-                            db.add_attachment(
-                                entry_id=entry['id'],
-                                filename=new_attachment.name,
-                                file_type=new_attachment.type or "application/octet-stream",
-                                file_data=file_data
-                            )
-                            st.success(f"Attachment '{new_attachment.name}' saved!")
-                            st.rerun()
-                        else:
-                            st.error("File exceeds 5MB limit")
         
         st.markdown("---")
         st.caption(f">> Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
