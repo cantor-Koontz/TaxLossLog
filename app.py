@@ -386,18 +386,22 @@ def main():
     BROKER_OPTIONS = ["", "UBS", "SCHWAB", "JMS", "JANNEY", "WELLS FARGO", "MAC"]
     
     with st.form("add_entry_form", clear_on_submit=True):
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
+        # Row 1: Account → Tickers → Held In (Tab flows left to right)
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
+        with row1_col1:
             account = st.text_input("ACCOUNT NUMBER *", placeholder="e.g., 1234")
+        with row1_col2:
             tickers = st.text_input("TICKERS SOLD *", placeholder="e.g., AAPL, AMZN, AMD")
-        
-        with col2:
-            sell_date = st.date_input("SELL DATE *", value=datetime.now())
+        with row1_col3:
             held_in = st.text_input("HELD IN (ETF/CASH) *", placeholder="e.g., SPY, QQQ, CASH")
         
-        with col3:
+        # Row 2: Sell Date → Broker → Comments (Tab continues left to right)
+        row2_col1, row2_col2, row2_col3 = st.columns(3)
+        with row2_col1:
+            sell_date = st.date_input("SELL DATE *", value=datetime.now())
+        with row2_col2:
             broker = st.selectbox("BROKER *", options=BROKER_OPTIONS, index=0)
+        with row2_col3:
             comments = st.text_input("COMMENTS (optional)", placeholder="Any notes...")
         
         submitted = st.form_submit_button(">> EXECUTE INSERT <<", type="primary", use_container_width=True)
