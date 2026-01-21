@@ -54,6 +54,15 @@ def init_database():
             conn.execute("ALTER TABLE entries ADD COLUMN broker TEXT DEFAULT ''")
         except:
             pass  # Column already exists
+        
+        # Add status column for 3-stage workflow: pending -> in_progress -> completed
+        try:
+            conn.execute("ALTER TABLE entries ADD COLUMN status TEXT DEFAULT 'pending'")
+            # Migrate existing data: completed=1 -> status='completed', else 'pending'
+            conn.execute("UPDATE entries SET status = 'completed' WHERE completed = 1 AND (status IS NULL OR status = 'pending')")
+            conn.execute("UPDATE entries SET status = 'pending' WHERE completed = 0 AND status IS NULL")
+        except:
+            pass  # Column already exists
         # Create index for faster queries
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_target_date ON entries(target_date)
@@ -132,7 +141,7 @@ def get_entries_by_status(status: str) -> list[dict]:
     Get entries filtered by status.
     
     Args:
-        status: 'waiting', 'ready', 'completed', or 'all'
+        status: 'waiting', 'ready', 'completed', 'pending', 'in_progress', or 'all'
     """
     today = datetime.now().date()
     
@@ -140,21 +149,35 @@ def get_entries_by_status(status: str) -> list[dict]:
         if status == "completed":
             rows = conn.execute("""
                 SELECT * FROM entries 
-                WHERE completed = 1
+                WHERE status = 'completed'
                 ORDER BY completed_date DESC
             """).fetchall()
         elif status == "waiting":
+            # Not completed AND target date in future
             rows = conn.execute("""
                 SELECT * FROM entries 
-                WHERE completed = 0 AND target_date > ?
+                WHERE status != 'completed' AND target_date > ?
                 ORDER BY target_date ASC
             """, (today.strftime("%Y-%m-%d"),)).fetchall()
         elif status == "ready":
+            # Not completed AND target date reached/passed
             rows = conn.execute("""
                 SELECT * FROM entries 
-                WHERE completed = 0 AND target_date <= ?
+                WHERE status != 'completed' AND target_date <= ?
                 ORDER BY target_date ASC
             """, (today.strftime("%Y-%m-%d"),)).fetchall()
+        elif status == "pending":
+            rows = conn.execute("""
+                SELECT * FROM entries 
+                WHERE status = 'pending'
+                ORDER BY target_date ASC
+            """).fetchall()
+        elif status == "in_progress":
+            rows = conn.execute("""
+                SELECT * FROM entries 
+                WHERE status = 'in_progress'
+                ORDER BY target_date ASC
+            """).fetchall()
         else:  # all
             rows = conn.execute("""
                 SELECT * FROM entries 
@@ -191,13 +214,54 @@ def get_entries_due_range(start_date: str, end_date: str) -> list[dict]:
 def mark_completed(entry_id: int, completed: bool = True):
     """Mark an entry as completed or not completed."""
     completed_date = datetime.now().strftime("%Y-%m-%d") if completed else None
+    status = 'completed' if completed else 'pending'
     
     with get_connection() as conn:
         conn.execute("""
             UPDATE entries 
-            SET completed = ?, completed_date = ?, updated_at = CURRENT_TIMESTAMP
+            SET completed = ?, completed_date = ?, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (1 if completed else 0, completed_date, entry_id))
+        """, (1 if completed else 0, completed_date, status, entry_id))
+
+
+def cycle_status(entry_id: int) -> str:
+    """
+    Cycle entry status: pending -> in_progress -> completed
+    Returns the new status.
+    """
+    with get_connection() as conn:
+        # Get current status
+        row = conn.execute("SELECT status FROM entries WHERE id = ?", (entry_id,)).fetchone()
+        current_status = row['status'] if row and row['status'] else 'pending'
+        
+        # Cycle to next status
+        if current_status == 'pending':
+            new_status = 'in_progress'
+            completed = 0
+            completed_date = None
+        elif current_status == 'in_progress':
+            new_status = 'completed'
+            completed = 1
+            completed_date = datetime.now().strftime("%Y-%m-%d")
+        else:  # completed -> back to pending
+            new_status = 'pending'
+            completed = 0
+            completed_date = None
+        
+        conn.execute("""
+            UPDATE entries 
+            SET status = ?, completed = ?, completed_date = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (new_status, completed, completed_date, entry_id))
+        
+        return new_status
+
+
+def get_entry_status(entry_id: int) -> str:
+    """Get the current status of an entry."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT status FROM entries WHERE id = ?", (entry_id,)).fetchone()
+        return row['status'] if row and row['status'] else 'pending'
 
 
 def update_entry(entry_id: int, account: str, tickers: str, held_in: str, 

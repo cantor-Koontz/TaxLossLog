@@ -367,29 +367,34 @@ def main():
         """, unsafe_allow_html=True)
         
         # Column headers for ACTION REQUIRED
-        hcol1, hcol2, hcol3, hcol4 = st.columns([0.5, 7.5, 1, 1])
+        hcol1, hcol2, hcol3, hcol4 = st.columns([1.2, 6.8, 1, 1])
+        with hcol1:
+            st.markdown("**STATUS**")
         with hcol3:
             st.markdown("**DOCS**")
         with hcol4:
             st.markdown("**DEL**")
         
-        # Show ready accounts with checkboxes
+        # Show ready accounts with status buttons
         for entry in ready_entries:
             # Get attachments for this entry
             attachments = db.get_attachments(entry['id'])
+            current_status = entry.get('status', 'pending') or 'pending'
             
-            col1, col2, col3, col4 = st.columns([0.5, 7.5, 1, 1])
+            col1, col2, col3, col4 = st.columns([1.2, 6.8, 1, 1])
             
             with col1:
-                is_done = st.checkbox(
-                    "X",
-                    value=bool(entry["completed"]),
-                    key=f"check_{entry['id']}",
-                    label_visibility="collapsed"
-                )
-                if is_done != bool(entry["completed"]):
-                    db.mark_completed(entry["id"], is_done)
-                    st.rerun()
+                # Status button - click to cycle
+                if current_status == 'pending':
+                    if st.button("🔴 Pending", key=f"status_{entry['id']}", help="Click → In Progress"):
+                        db.cycle_status(entry['id'])
+                        st.rerun()
+                elif current_status == 'in_progress':
+                    if st.button("🟡 In Prog", key=f"status_{entry['id']}", help="Click → Completed"):
+                        db.cycle_status(entry['id'])
+                        st.rerun()
+                else:  # completed - shouldn't show here but just in case
+                    st.markdown("✅ Done")
             
             with col2:
                 days = calculate_days_remaining(entry["target_date"])
@@ -556,9 +561,9 @@ def main():
         account_counts = db.get_all_account_counts()
         
         # Column headers
-        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10, hcol11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.6, 0.4])
+        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10 = st.columns([1.1, 1.1, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.6, 0.4])
         with hcol1:
-            st.markdown("**✓**")
+            st.markdown("**STATUS**")
         with hcol2:
             st.markdown("**ACCT**")
         with hcol3:
@@ -574,20 +579,19 @@ def main():
         with hcol8:
             st.markdown("**DAYS**")
         with hcol9:
-            st.markdown("**STATUS**")
-        with hcol10:
             st.markdown("**DOCS**")
-        with hcol11:
+        with hcol10:
             st.markdown("**DEL**")
         
         st.markdown("---")
         
         for entry in entries:
             days = calculate_days_remaining(entry["target_date"])
-            status = get_status_display(days, bool(entry["completed"]))
+            date_status = get_status_display(days, bool(entry["completed"]))
+            current_status = entry.get('status', 'pending') or 'pending'
             
             # Format days display
-            if entry["completed"]:
+            if current_status == 'completed':
                 days_display = "---"
             elif days == 0:
                 days_display = "NOW!"
@@ -599,18 +603,20 @@ def main():
             # Get attachments for this entry
             entry_attachments = db.get_attachments(entry['id'])
             
-            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 = st.columns([0.4, 1.2, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.7, 0.6, 0.4])
+            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([1.1, 1.1, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.6, 0.4])
             
             with col1:
-                is_completed = st.checkbox(
-                    "Done",
-                    value=bool(entry["completed"]),
-                    key=f"table_check_{entry['id']}",
-                    label_visibility="collapsed"
-                )
-                if is_completed != bool(entry["completed"]):
-                    db.mark_completed(entry["id"], is_completed)
-                    st.rerun()
+                # Status button - click to cycle: Pending → In Progress → Completed
+                if current_status == 'pending':
+                    if st.button("🔴 Pending", key=f"tbl_status_{entry['id']}", help="Click → In Progress"):
+                        db.cycle_status(entry['id'])
+                        st.rerun()
+                elif current_status == 'in_progress':
+                    if st.button("🟡 In Prog", key=f"tbl_status_{entry['id']}", help="Click → Completed"):
+                        db.cycle_status(entry['id'])
+                        st.rerun()
+                else:  # completed
+                    st.markdown("✅ Done")
             
             with col2:
                 # Show account with entry count
@@ -637,24 +643,17 @@ def main():
                 st.markdown(entry["target_date"])
             
             with col8:
+                # Days display with color based on date status
                 if days_display == "NOW!":
                     st.markdown(f"**:red[{days_display}]**")
-                elif status == "READY":
+                elif date_status == "READY":
                     st.markdown(f":green[{days_display}]")
-                elif status == "WAITING":
+                elif date_status == "WAITING":
                     st.markdown(f":orange[{days_display}]")
                 else:
                     st.markdown(days_display)
             
             with col9:
-                if status == "READY":
-                    st.markdown(":green[READY]")
-                elif status == "WAITING":
-                    st.markdown(":orange[WAITING]")
-                else:
-                    st.markdown(":gray[DONE]")
-            
-            with col10:
                 # Direct download button for attachments
                 if entry_attachments:
                     att = entry_attachments[0]  # Most recent attachment
@@ -671,7 +670,7 @@ def main():
                 else:
                     st.markdown(":gray[—]")
             
-            with col11:
+            with col10:
                 if st.button("X", key=f"del_{entry['id']}"):
                     db.delete_attachments_for_entry(entry["id"])  # Delete attachments first
                     db.delete_entry(entry["id"])
@@ -707,18 +706,12 @@ def main():
             completed_account_counts = db.get_all_account_counts()
             
             for entry in completed_entries:
-                col1, col2, col3, col4, col5, col6, col7 = st.columns([0.4, 1, 1.8, 1, 1, 1.5, 0.5])
+                col1, col2, col3, col4, col5, col6, col7 = st.columns([1.1, 1, 1.6, 1, 1, 1.3, 0.5])
                 
                 with col1:
-                    # Checkbox to mark as NOT completed (undo)
-                    is_completed = st.checkbox(
-                        "Done",
-                        value=True,
-                        key=f"completed_check_{entry['id']}",
-                        label_visibility="collapsed"
-                    )
-                    if not is_completed:
-                        db.mark_completed(entry["id"], False)
+                    # Status button - click to move back to Pending
+                    if st.button("✅ Done", key=f"comp_status_{entry['id']}", help="Click → Back to Pending"):
+                        db.cycle_status(entry['id'])
                         st.rerun()
                 
                 with col2:
@@ -741,6 +734,7 @@ def main():
                 
                 with col7:
                     if st.button("X", key=f"del_completed_{entry['id']}"):
+                        db.delete_attachments_for_entry(entry["id"])
                         db.delete_entry(entry["id"])
                         st.rerun()
             
@@ -750,7 +744,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #008f11; font-size: 0.8rem;">
-        <strong>SYSTEM GUIDE:</strong> Add entries on sell date // Checkbox when buyback complete // Click REFRESH to sync with other users
+        <strong>SYSTEM GUIDE:</strong> Add entries on sell date // Click status to cycle: 🔴 Pending → 🟡 In Progress → ✅ Done // Click REFRESH to sync
     </div>
     """, unsafe_allow_html=True)
 
