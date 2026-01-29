@@ -1,5 +1,5 @@
 """
-Tax Loss Harvesting Tracker - MATRIX MODE
+Tax Loss Harvesting Tracker - Dark Navy Theme
 A multi-user tool for tracking 30-day wash sale periods.
 """
 
@@ -12,15 +12,33 @@ import time
 # Page configuration
 st.set_page_config(
     page_title="Tax Loss Harvest Tracker",
-    page_icon="💊",
+    page_icon="📊",
     layout="wide",
 )
 
-# Matrix Theme CSS (matching Proxy Voting style)
-MATRIX_CSS = """
+# Dark Navy Theme CSS
+THEME_CSS = """
 <style>
-    /* Import Matrix-style fonts - distinctive typography */
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+    /* Import clean, modern fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+    
+    /* CSS Variables for easy theming */
+    :root {
+        --bg-primary: #020617;
+        --bg-secondary: #0f172a;
+        --bg-tertiary: #1e293b;
+        --bg-card: #1e293b;
+        --border-color: #334155;
+        --border-accent: #3b82f6;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --accent-blue: #3b82f6;
+        --accent-blue-light: #60a5fa;
+        --success: #22c55e;
+        --warning: #eab308;
+        --danger: #ef4444;
+    }
     
     /* Remove top padding/margin */
     .block-container {
@@ -28,7 +46,7 @@ MATRIX_CSS = """
     }
     
     header[data-testid="stHeader"] {
-        background: transparent !important;
+        background: var(--bg-primary) !important;
         height: 0 !important;
         min-height: 0 !important;
         padding: 0 !important;
@@ -39,173 +57,171 @@ MATRIX_CSS = """
         display: none !important;
     }
     
-    /* Main app background - optimized (removed heavy overlays) */
+    /* Main app background */
     .stApp {
-        background: linear-gradient(180deg, #000000 0%, #001a00 50%, #000000 100%);
+        background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
     }
     
-    /* Lightweight vignette only (removed scanlines and noise for performance) */
-    .block-container::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.3) 100%);
-        pointer-events: none;
-        z-index: -1;
-    }
-    
-    /* All text in Matrix green */
+    /* All text styling */
     .stApp, .stApp p, .stApp span, .stApp label, .stApp div {
-        color: #00ff41 !important;
-        font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
     
-    /* Headers - Orbitron for impact (optimized - no continuous animation) */
+    /* Main Header */
     .main-header {
-        font-size: 2.5rem;
-        font-weight: 900;
-        color: #00ff41 !important;
-        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--text-primary) !important;
         margin-bottom: 0.25rem;
         margin-top: 0 !important;
         padding-top: 0 !important;
-        font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
-        letter-spacing: 4px;
-        text-transform: uppercase;
+        font-family: 'Space Grotesk', sans-serif !important;
+        letter-spacing: -0.5px;
     }
     
     .sub-header {
         font-size: 1rem;
-        color: #008f11 !important;
+        color: var(--text-secondary) !important;
         margin-bottom: 1.5rem;
-        font-family: 'Share Tech Mono', monospace !important;
+        font-family: 'Inter', sans-serif !important;
     }
     
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #000000 0%, #001100 100%) !important;
-        border-right: 1px solid #00ff41 !important;
+        background: var(--bg-secondary) !important;
+        border-right: 1px solid var(--border-color) !important;
     }
     
     [data-testid="stSidebar"] * {
-        color: #00ff41 !important;
+        color: var(--text-primary) !important;
     }
     
-    /* Metric cards with hover effects (optimized) */
+    /* Metric cards */
     [data-testid="stMetric"] {
-        background: rgba(0, 255, 65, 0.05) !important;
-        border: 1px solid #00ff41 !important;
-        border-radius: 5px !important;
-        padding: 15px !important;
-        box-shadow: 0 0 10px rgba(0, 255, 65, 0.3) !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        padding: 16px !important;
+        transition: transform 0.2s ease, border-color 0.2s ease !important;
     }
     
     [data-testid="stMetric"]:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.4) !important;
+        border-color: var(--accent-blue) !important;
     }
     
     [data-testid="stMetric"] label {
-        color: #008f11 !important;
-        font-family: 'Orbitron', monospace !important;
-        font-size: 0.75rem !important;
-        letter-spacing: 1px !important;
+        color: var(--text-secondary) !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.8rem !important;
+        font-weight: 500 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
     
     [data-testid="stMetric"] [data-testid="stMetricValue"] {
-        color: #00ff41 !important;
-        text-shadow: 0 0 5px #00ff41 !important;
-        font-family: 'Orbitron', monospace !important;
-        font-weight: 700 !important;
+        color: var(--text-primary) !important;
+        font-family: 'Space Grotesk', sans-serif !important;
+        font-weight: 600 !important;
     }
     
     [data-testid="stMetric"] [data-testid="stMetricDelta"] {
-        color: #39ff14 !important;
+        color: var(--success) !important;
     }
     
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         background-color: transparent !important;
-        border-bottom: 1px solid #00ff41 !important;
+        border-bottom: 1px solid var(--border-color) !important;
     }
     
     .stTabs [data-baseweb="tab"] {
-        color: #008f11 !important;
+        color: var(--text-secondary) !important;
         background-color: transparent !important;
-        border: 1px solid #003300 !important;
-        border-bottom: none !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
     }
     
     .stTabs [aria-selected="true"] {
-        color: #00ff41 !important;
-        background-color: rgba(0, 255, 65, 0.1) !important;
-        border: 1px solid #00ff41 !important;
-        border-bottom: none !important;
-        text-shadow: 0 0 5px #00ff41 !important;
+        color: var(--accent-blue) !important;
+        background-color: transparent !important;
+        border-bottom: 2px solid var(--accent-blue) !important;
     }
     
-    /* Buttons (optimized - simpler hover) */
+    /* Buttons */
     .stButton > button {
-        background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
-        color: #00ff41 !important;
-        border: 1px solid #00ff41 !important;
-        font-family: 'Share Tech Mono', monospace !important;
-        transition: background 0.2s ease, box-shadow 0.2s ease !important;
+        background: var(--bg-tertiary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 500 !important;
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
     }
     
     .stButton > button:hover {
-        background: linear-gradient(180deg, #004400 0%, #002200 100%) !important;
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.5) !important;
+        background: var(--accent-blue) !important;
+        border-color: var(--accent-blue) !important;
+        color: white !important;
     }
     
     .stButton > button:active {
-        box-shadow: 0 0 5px #00ff41 !important;
+        transform: scale(0.98) !important;
     }
     
     /* Input fields */
     .stTextInput > div > div > input,
     .stSelectbox > div > div > div,
     .stDateInput > div > div > input {
-        background: #001a00 !important;
-        border: 1px solid #00ff41 !important;
-        color: #00ff41 !important;
-        font-family: 'Share Tech Mono', monospace !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', sans-serif !important;
+        border-radius: 6px !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stSelectbox > div > div > div:focus {
+        border-color: var(--accent-blue) !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
     }
     
     /* Success/Info/Warning/Error boxes */
     .stSuccess {
-        background-color: rgba(0, 255, 65, 0.1) !important;
-        border: 1px solid #00ff41 !important;
-        color: #00ff41 !important;
+        background-color: rgba(34, 197, 94, 0.1) !important;
+        border: 1px solid var(--success) !important;
+        color: var(--success) !important;
+        border-radius: 6px !important;
     }
     
     .stInfo {
-        background-color: rgba(0, 143, 17, 0.2) !important;
-        border: 1px solid #008f11 !important;
-        color: #00ff41 !important;
+        background-color: rgba(59, 130, 246, 0.1) !important;
+        border: 1px solid var(--accent-blue) !important;
+        color: var(--accent-blue-light) !important;
+        border-radius: 6px !important;
     }
     
     .stWarning {
-        background-color: rgba(255, 200, 0, 0.1) !important;
-        border: 1px solid #ffc800 !important;
-        color: #ffc800 !important;
+        background-color: rgba(234, 179, 8, 0.1) !important;
+        border: 1px solid var(--warning) !important;
+        color: var(--warning) !important;
+        border-radius: 6px !important;
     }
     
     .stError {
-        background-color: rgba(255, 0, 0, 0.1) !important;
-        border: 1px solid #ff0040 !important;
-        color: #ff0040 !important;
+        background-color: rgba(239, 68, 68, 0.1) !important;
+        border: 1px solid var(--danger) !important;
+        color: var(--danger) !important;
+        border-radius: 6px !important;
     }
     
     /* Expander */
     .streamlit-expanderHeader {
-        background: rgba(0, 255, 65, 0.05) !important;
-        border: 1px solid #003300 !important;
-        color: #00ff41 !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 6px !important;
     }
     
     /* Scrollbar */
@@ -215,76 +231,77 @@ MATRIX_CSS = """
     }
     
     ::-webkit-scrollbar-track {
-        background: #001100;
+        background: var(--bg-secondary);
     }
     
     ::-webkit-scrollbar-thumb {
-        background: #00ff41;
+        background: var(--border-color);
         border-radius: 4px;
     }
     
-    /* HR/Dividers */
-    hr {
-        border-color: #003300 !important;
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
     }
     
     /* Alert box for ACTION REQUIRED */
     .action-alert {
-        background: rgba(255, 0, 64, 0.1) !important;
-        border: 2px solid #ff0040 !important;
+        background: rgba(239, 68, 68, 0.08) !important;
+        border: 1px solid var(--danger) !important;
         border-radius: 10px !important;
         padding: 20px !important;
         margin: 15px 0 !important;
-        box-shadow: 0 0 20px rgba(255, 0, 64, 0.3) !important;
     }
     
     .action-alert-header {
-        color: #ff0040 !important;
-        font-size: 1.3rem !important;
-        font-weight: bold !important;
-        text-shadow: 0 0 10px #ff0040 !important;
+        color: var(--danger) !important;
+        font-size: 1.2rem !important;
+        font-weight: 600 !important;
         margin-bottom: 10px !important;
+        font-family: 'Space Grotesk', sans-serif !important;
     }
     
     .action-item {
-        background: rgba(255, 0, 64, 0.05) !important;
-        border-left: 3px solid #ff0040 !important;
-        padding: 10px 15px !important;
-        margin: 5px 0 !important;
-        color: #00ff41 !important;
+        background: rgba(239, 68, 68, 0.05) !important;
+        border-left: 3px solid var(--danger) !important;
+        padding: 12px 16px !important;
+        margin: 8px 0 !important;
+        color: var(--text-primary) !important;
+        border-radius: 0 6px 6px 0 !important;
     }
     
     .action-item:hover {
-        background: rgba(255, 0, 64, 0.1) !important;
+        background: rgba(239, 68, 68, 0.1) !important;
     }
     
     /* Checkbox styling */
     .stCheckbox label span {
-        color: #00ff41 !important;
+        color: var(--text-primary) !important;
     }
     
     /* Code blocks - inline */
     code {
-        background: rgba(0, 255, 65, 0.1) !important;
-        color: #00ff41 !important;
-        border: 1px solid #003300 !important;
+        background: var(--bg-tertiary) !important;
+        color: var(--accent-blue-light) !important;
+        border: 1px solid var(--border-color) !important;
         padding: 2px 6px !important;
+        border-radius: 4px !important;
     }
     
     /* Streamlit code blocks (st.code) */
     [data-testid="stCode"],
     .stCode,
     pre {
-        background: #001a00 !important;
-        border: 1px solid #00ff41 !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 6px !important;
     }
     
     [data-testid="stCode"] code,
     .stCode code,
     pre code {
         background: transparent !important;
-        color: #00ff41 !important;
-        font-family: 'Share Tech Mono', monospace !important;
+        color: var(--text-primary) !important;
+        font-family: 'SF Mono', 'Fira Code', monospace !important;
     }
     
     /* Code copy button */
@@ -294,14 +311,14 @@ MATRIX_CSS = """
     
     /* File uploader styling */
     [data-testid="stFileUploader"] {
-        background: rgba(0, 255, 65, 0.02) !important;
-        border: 1px dashed #00ff41 !important;
-        border-radius: 5px !important;
-        padding: 10px !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px dashed var(--border-color) !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
     }
     
     [data-testid="stFileUploader"] label {
-        color: #00ff41 !important;
+        color: var(--text-primary) !important;
     }
     
     [data-testid="stFileUploader"] section {
@@ -309,51 +326,42 @@ MATRIX_CSS = """
     }
     
     [data-testid="stFileUploader"] button {
-        background: #001a00 !important;
-        color: #00ff41 !important;
-        border: 1px solid #00ff41 !important;
+        background: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
     }
     
     /* Download button styling */
     .stDownloadButton > button {
-        background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
-        color: #00ff41 !important;
-        border: 1px solid #00ff41 !important;
-        font-family: 'Share Tech Mono', monospace !important;
+        background: var(--bg-tertiary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    .stDownloadButton > button:hover {
+        background: var(--accent-blue) !important;
+        border-color: var(--accent-blue) !important;
     }
     
     /* Expander styling */
     [data-testid="stExpander"] {
-        background: rgba(0, 255, 65, 0.02) !important;
-        border: 1px solid #003300 !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
     }
     
     [data-testid="stExpander"] summary {
-        color: #00ff41 !important;
+        color: var(--text-primary) !important;
     }
     
-    /* Glowing border animation */
-    .glow-box {
-        animation: glow 2s ease-in-out infinite alternate;
-    }
-    
-    @keyframes glow {
-        from { box-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41; }
-        to { box-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #00ff41; }
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41; }
-        50% { opacity: 0.7; text-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41; }
-    }
-    
-    /* Section headers with glow */
+    /* Section headers */
     h3, .stMarkdown h3 {
-        color: #00ff41 !important;
-        font-family: 'Orbitron', monospace !important;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-        letter-spacing: 2px;
-        border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+        color: var(--text-primary) !important;
+        font-family: 'Space Grotesk', sans-serif !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.3px;
+        border-bottom: 1px solid var(--border-color);
         padding-bottom: 0.5rem;
     }
     
@@ -361,75 +369,79 @@ MATRIX_CSS = """
     hr {
         border: none !important;
         height: 1px !important;
-        background: linear-gradient(90deg, transparent, #00ff41, transparent) !important;
+        background: var(--border-color) !important;
         margin: 1.5rem 0 !important;
     }
     
     /* Caption/timestamp styling */
     .stCaption, small {
-        color: #006400 !important;
+        color: var(--text-muted) !important;
         font-size: 0.75rem !important;
-        letter-spacing: 1px;
     }
     
     /* Selection highlight color */
     ::selection {
-        background: #00ff41 !important;
-        color: #000000 !important;
+        background: var(--accent-blue) !important;
+        color: white !important;
     }
     
     /* Focus states */
     *:focus {
-        outline: 1px solid #00ff41 !important;
+        outline: 2px solid var(--accent-blue) !important;
         outline-offset: 2px;
     }
     
     /* Tooltip styling */
     [data-baseweb="tooltip"] {
-        background: #001a00 !important;
-        border: 1px solid #00ff41 !important;
-        color: #00ff41 !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 6px !important;
     }
     
     /* Data Editor (Excel-like grid) styling */
     [data-testid="stDataFrame"],
     [data-testid="stDataFrameResizable"] {
-        border: 1px solid #00ff41 !important;
-        border-radius: 5px !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        overflow: hidden;
     }
     
     [data-testid="stDataFrame"] > div,
     [data-testid="stDataFrameResizable"] > div {
-        background: #001a00 !important;
+        background: var(--bg-tertiary) !important;
     }
     
     /* Grid header cells */
     .dvn-scroller .ch {
-        background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
-        color: #00ff41 !important;
-        font-family: 'Share Tech Mono', monospace !important;
-        border-bottom: 1px solid #00ff41 !important;
+        background: var(--bg-secondary) !important;
+        color: var(--text-secondary) !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 0.5px !important;
+        border-bottom: 1px solid var(--border-color) !important;
     }
     
     /* Grid data cells */
     .dvn-scroller .cc {
-        background: #001100 !important;
-        color: #00ff41 !important;
-        font-family: 'Share Tech Mono', monospace !important;
-        border-color: #003300 !important;
+        background: var(--bg-tertiary) !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', sans-serif !important;
+        border-color: var(--border-color) !important;
     }
     
     /* Selected/focused cell */
     .dvn-scroller .cc.selected,
     .dvn-scroller .cc:focus {
-        background: rgba(0, 255, 65, 0.15) !important;
-        border: 1px solid #00ff41 !important;
-        box-shadow: 0 0 5px #00ff41 !important;
+        background: rgba(59, 130, 246, 0.15) !important;
+        border: 1px solid var(--accent-blue) !important;
     }
     
     /* Hover effect on cells */
     .dvn-scroller .cc:hover {
-        background: rgba(0, 255, 65, 0.1) !important;
+        background: rgba(59, 130, 246, 0.08) !important;
     }
     
     /* Grid scrollbar */
@@ -439,85 +451,76 @@ MATRIX_CSS = """
     }
     
     .dvn-scroller::-webkit-scrollbar-track {
-        background: #001100;
+        background: var(--bg-secondary);
     }
     
     .dvn-scroller::-webkit-scrollbar-thumb {
-        background: #00ff41;
+        background: var(--border-color);
         border-radius: 4px;
     }
     
-    /* Glidedata grid overrides - Matrix theme */
+    /* Glidedata grid overrides */
     .glideDataEditor {
-        --gdg-bg-cell: #001100 !important;
-        --gdg-bg-header: #002200 !important;
-        --gdg-bg-header-has-focus: #003300 !important;
-        --gdg-text-dark: #00ff41 !important;
-        --gdg-text-medium: #00ff41 !important;
-        --gdg-text-light: #008f11 !important;
-        --gdg-border-color: #003300 !important;
-        --gdg-accent-color: #00ff41 !important;
-        --gdg-accent-light: rgba(0, 255, 65, 0.2) !important;
+        --gdg-bg-cell: #1e293b !important;
+        --gdg-bg-header: #0f172a !important;
+        --gdg-bg-header-has-focus: #1e293b !important;
+        --gdg-text-dark: #f1f5f9 !important;
+        --gdg-text-medium: #e2e8f0 !important;
+        --gdg-text-light: #94a3b8 !important;
+        --gdg-border-color: #334155 !important;
+        --gdg-accent-color: #3b82f6 !important;
+        --gdg-accent-light: rgba(59, 130, 246, 0.2) !important;
     }
     
     /* Data editor container */
     [data-testid="stDataFrame"] {
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.1) !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
         border-radius: 8px !important;
-        overflow: hidden;
-    }
-    
-    /* Action alert - static glow (no continuous animation) */
-    .action-alert {
-        box-shadow: 0 0 20px rgba(255, 0, 64, 0.3);
     }
     
     /* Loading/refresh spinner override */
     .stSpinner > div {
-        border-color: #00ff41 transparent transparent transparent !important;
+        border-color: var(--accent-blue) transparent transparent transparent !important;
     }
     
-    /* Matrix "digital rain" decorative element */
-    .matrix-rain {
-        position: fixed;
-        top: 0;
-        right: 20px;
-        width: 30px;
-        height: 100vh;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 1;
-        opacity: 0.1;
-    }
-    
-    /* Checkbox Matrix style */
+    /* Checkbox style */
     .stCheckbox label span[data-baseweb="checkbox"] {
-        border-color: #00ff41 !important;
-        background: #001a00 !important;
+        border-color: var(--border-color) !important;
+        background: var(--bg-tertiary) !important;
+        border-radius: 4px !important;
     }
     
     .stCheckbox label span[data-baseweb="checkbox"][aria-checked="true"] {
-        background: #00ff41 !important;
-        border-color: #00ff41 !important;
+        background: var(--accent-blue) !important;
+        border-color: var(--accent-blue) !important;
     }
     
     /* Toast notifications */
     .stToast {
-        background: #001a00 !important;
-        border: 1px solid #00ff41 !important;
-        color: #00ff41 !important;
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 8px !important;
     }
     
     /* Link styling */
     a {
-        color: #39ff14 !important;
+        color: var(--accent-blue-light) !important;
         text-decoration: none !important;
-        transition: all 0.2s ease;
+        transition: color 0.2s ease;
     }
     
     a:hover {
-        color: #00ff41 !important;
-        text-shadow: 0 0 10px #00ff41;
+        color: var(--accent-blue) !important;
+        text-decoration: underline !important;
+    }
+    
+    /* Form styling */
+    [data-testid="stForm"] {
+        background: var(--bg-tertiary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        padding: 1.5rem !important;
     }
 </style>
 """
@@ -541,12 +544,12 @@ def get_status_display(days_remaining: int, completed: bool) -> str:
 
 
 def main():
-    # Apply Matrix theme
-    st.markdown(MATRIX_CSS, unsafe_allow_html=True)
+    # Apply dark navy theme
+    st.markdown(THEME_CSS, unsafe_allow_html=True)
     
     # Header
-    st.markdown('<p class="main-header">💊 TAX LOSS HARVEST TRACKER</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">>> Track 30-day wash sale periods // Multi-user access enabled</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">📊 Tax Loss Harvest Tracker</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Track 30-day wash sale periods • Multi-user access</p>', unsafe_allow_html=True)
     
     # Get stats
     stats = db.get_stats()
@@ -610,11 +613,11 @@ def main():
                 count_text = f" (x{acct_count})" if acct_count > 1 else ""
                 st.markdown(f"""
                 <div class="action-item">
-                    <strong style="color: #ff0040;">ACCT: {entry['account']}{count_text}</strong> | 
+                    <strong style="color: #ef4444;">ACCT: {entry['account']}{count_text}</strong> | 
                     BROKER: {broker_text} |
                     TICKERS: {entry['tickers']} | 
                     HELD: {entry['held_in']} | 
-                    <span style="color: #ff0040;">{day_text}</span>
+                    <span style="color: #ef4444;">{day_text}</span>
                     {f" | NOTE: {entry['comments']}" if entry['comments'] else ""}
                 </div>
                 """, unsafe_allow_html=True)
@@ -976,12 +979,12 @@ def main():
     
     else:
         st.markdown("""
-        <div style="text-align: center; padding: 40px; border: 1px solid #00ff41; border-radius: 10px; background: rgba(0,255,65,0.02); margin: 20px 0;">
-            <p style="font-size: 1.5rem; color: #00ff41; text-shadow: 0 0 10px #00ff41;">
-                NO ACTIVE ENTRIES
+        <div style="text-align: center; padding: 40px; border: 1px solid #334155; border-radius: 10px; background: rgba(30, 41, 59, 0.5); margin: 20px 0;">
+            <p style="font-size: 1.5rem; color: #f1f5f9;">
+                No Active Entries
             </p>
-            <p style="font-size: 1rem; color: #008f11;">
-                "Add your first entry to enter the Matrix..."
+            <p style="font-size: 1rem; color: #94a3b8;">
+                Add your first entry to start tracking wash sale periods
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -1059,8 +1062,8 @@ def main():
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style="text-align: center; color: #008f11; font-size: 0.8rem;">
-        <strong>SYSTEM GUIDE:</strong> Add entries on sell date // Click status to cycle: 🔴 Pending → 🟡 In Progress → ✅ Done // Click REFRESH to sync
+    <div style="text-align: center; color: #64748b; font-size: 0.8rem;">
+        <strong>Quick Guide:</strong> Add entries on sell date • Click status to cycle: 🔴 Pending → 🟡 In Progress → ✅ Done • Click REFRESH to sync
     </div>
     """, unsafe_allow_html=True)
 
