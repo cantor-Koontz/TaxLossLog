@@ -39,53 +39,12 @@ MATRIX_CSS = """
         display: none !important;
     }
     
-    /* Main app background with CRT effect */
+    /* Main app background - optimized (removed heavy overlays) */
     .stApp {
         background: linear-gradient(180deg, #000000 0%, #001a00 50%, #000000 100%);
-        cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><line x1="10" y1="0" x2="10" y2="20" stroke="%2300ff41" stroke-width="1"/><line x1="0" y1="10" x2="20" y2="10" stroke="%2300ff41" stroke-width="1"/><circle cx="10" cy="10" r="3" fill="none" stroke="%2300ff41" stroke-width="1"/></svg>') 10 10, crosshair;
     }
     
-    /* CRT Scanline overlay */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: repeating-linear-gradient(
-            0deg,
-            rgba(0, 0, 0, 0.15),
-            rgba(0, 0, 0, 0.15) 1px,
-            transparent 1px,
-            transparent 2px
-        );
-        pointer-events: none;
-        z-index: 9999;
-        animation: scanline-scroll 10s linear infinite;
-    }
-    
-    /* CRT noise/grain texture */
-    .stApp::after {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-        opacity: 0.03;
-        pointer-events: none;
-        z-index: 9998;
-    }
-    
-    /* Scanline scroll animation */
-    @keyframes scanline-scroll {
-        0% { background-position: 0 0; }
-        100% { background-position: 0 100vh; }
-    }
-    
-    /* CRT screen curvature vignette */
+    /* Lightweight vignette only (removed scanlines and noise for performance) */
     .block-container::before {
         content: '';
         position: fixed;
@@ -93,9 +52,9 @@ MATRIX_CSS = """
         left: 0;
         width: 100%;
         height: 100%;
-        background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%);
+        background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.3) 100%);
         pointer-events: none;
-        z-index: 9997;
+        z-index: -1;
     }
     
     /* All text in Matrix green */
@@ -104,19 +63,18 @@ MATRIX_CSS = """
         font-family: 'Share Tech Mono', 'Courier New', monospace !important;
     }
     
-    /* Headers - Orbitron for impact */
+    /* Headers - Orbitron for impact (optimized - no continuous animation) */
     .main-header {
         font-size: 2.5rem;
         font-weight: 900;
         color: #00ff41 !important;
-        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41, 0 0 80px #008f11;
+        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41;
         margin-bottom: 0.25rem;
         margin-top: 0 !important;
         padding-top: 0 !important;
         font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
         letter-spacing: 4px;
         text-transform: uppercase;
-        animation: header-flicker 4s infinite;
     }
     
     .sub-header {
@@ -124,17 +82,6 @@ MATRIX_CSS = """
         color: #008f11 !important;
         margin-bottom: 1.5rem;
         font-family: 'Share Tech Mono', monospace !important;
-        animation: fadeInUp 0.8s ease-out;
-    }
-    
-    /* Header flicker animation */
-    @keyframes header-flicker {
-        0%, 100% { opacity: 1; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41; }
-        92% { opacity: 1; }
-        93% { opacity: 0.8; text-shadow: 0 0 5px #00ff41; }
-        94% { opacity: 1; }
-        96% { opacity: 0.9; }
-        97% { opacity: 1; }
     }
     
     /* Sidebar styling */
@@ -147,26 +94,19 @@ MATRIX_CSS = """
         color: #00ff41 !important;
     }
     
-    /* Metric cards with hover effects */
+    /* Metric cards with hover effects (optimized) */
     [data-testid="stMetric"] {
         background: rgba(0, 255, 65, 0.05) !important;
         border: 1px solid #00ff41 !important;
         border-radius: 5px !important;
         padding: 15px !important;
         box-shadow: 0 0 10px rgba(0, 255, 65, 0.3) !important;
-        transition: all 0.3s ease !important;
-        animation: fadeInUp 0.6s ease-out backwards;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
     }
     
-    [data-testid="stMetric"]:nth-child(1) { animation-delay: 0.1s; }
-    [data-testid="stMetric"]:nth-child(2) { animation-delay: 0.2s; }
-    [data-testid="stMetric"]:nth-child(3) { animation-delay: 0.3s; }
-    [data-testid="stMetric"]:nth-child(4) { animation-delay: 0.4s; }
-    
     [data-testid="stMetric"]:hover {
-        transform: translateY(-3px) scale(1.02) !important;
-        box-shadow: 0 0 20px rgba(0, 255, 65, 0.5), 0 5px 20px rgba(0, 0, 0, 0.3) !important;
-        border-color: #39ff14 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.4) !important;
     }
     
     [data-testid="stMetric"] label {
@@ -181,18 +121,6 @@ MATRIX_CSS = """
         text-shadow: 0 0 5px #00ff41 !important;
         font-family: 'Orbitron', monospace !important;
         font-weight: 700 !important;
-    }
-    
-    /* Fade in up animation */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
     }
     
     [data-testid="stMetric"] [data-testid="stMetricDelta"] {
@@ -220,43 +148,22 @@ MATRIX_CSS = """
         text-shadow: 0 0 5px #00ff41 !important;
     }
     
-    /* Buttons with enhanced interactions */
+    /* Buttons (optimized - simpler hover) */
     .stButton > button {
         background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
         color: #00ff41 !important;
         border: 1px solid #00ff41 !important;
         font-family: 'Share Tech Mono', monospace !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .stButton > button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
-        transition: left 0.5s ease;
+        transition: background 0.2s ease, box-shadow 0.2s ease !important;
     }
     
     .stButton > button:hover {
         background: linear-gradient(180deg, #004400 0%, #002200 100%) !important;
-        box-shadow: 0 0 20px #00ff41, inset 0 0 10px rgba(0, 255, 65, 0.1) !important;
-        text-shadow: 0 0 10px #00ff41 !important;
-        transform: translateY(-2px);
-        border-color: #39ff14 !important;
-    }
-    
-    .stButton > button:hover::before {
-        left: 100%;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.5) !important;
     }
     
     .stButton > button:active {
-        transform: translateY(0) scale(0.98) !important;
-        box-shadow: 0 0 10px #00ff41 !important;
+        box-shadow: 0 0 5px #00ff41 !important;
     }
     
     /* Input fields */
@@ -345,31 +252,10 @@ MATRIX_CSS = """
         padding: 10px 15px !important;
         margin: 5px 0 !important;
         color: #00ff41 !important;
-        transition: all 0.3s ease !important;
-        position: relative;
     }
     
     .action-item:hover {
         background: rgba(255, 0, 64, 0.1) !important;
-        border-left-width: 5px !important;
-        transform: translateX(5px);
-        box-shadow: 0 0 15px rgba(255, 0, 64, 0.2) !important;
-    }
-    
-    .action-item::after {
-        content: '▶';
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #ff0040;
-        opacity: 0;
-        transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-    
-    .action-item:hover::after {
-        opacity: 1;
-        transform: translateY(-50%) translateX(5px);
     }
     
     /* Checkbox styling */
@@ -461,29 +347,6 @@ MATRIX_CSS = """
         50% { opacity: 0.7; text-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41; }
     }
     
-    /* Row entrance animations */
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    /* Staggered row animations for forms */
-    .stForm > div > div {
-        animation: slideInRight 0.4s ease-out backwards;
-    }
-    
-    .stForm > div > div:nth-child(1) { animation-delay: 0.05s; }
-    .stForm > div > div:nth-child(2) { animation-delay: 0.1s; }
-    .stForm > div > div:nth-child(3) { animation-delay: 0.15s; }
-    .stForm > div > div:nth-child(4) { animation-delay: 0.2s; }
-    .stForm > div > div:nth-child(5) { animation-delay: 0.25s; }
-    
     /* Section headers with glow */
     h3, .stMarkdown h3 {
         color: #00ff41 !important;
@@ -492,7 +355,6 @@ MATRIX_CSS = """
         letter-spacing: 2px;
         border-bottom: 1px solid rgba(0, 255, 65, 0.3);
         padding-bottom: 0.5rem;
-        animation: fadeInUp 0.5s ease-out;
     }
     
     /* Horizontal rule styling */
@@ -501,12 +363,6 @@ MATRIX_CSS = """
         height: 1px !important;
         background: linear-gradient(90deg, transparent, #00ff41, transparent) !important;
         margin: 1.5rem 0 !important;
-        animation: hrGlow 2s ease-in-out infinite;
-    }
-    
-    @keyframes hrGlow {
-        0%, 100% { opacity: 0.5; }
-        50% { opacity: 1; box-shadow: 0 0 10px #00ff41; }
     }
     
     /* Caption/timestamp styling */
@@ -602,30 +458,18 @@ MATRIX_CSS = """
         --gdg-border-color: #003300 !important;
         --gdg-accent-color: #00ff41 !important;
         --gdg-accent-light: rgba(0, 255, 65, 0.2) !important;
-        animation: fadeInUp 0.6s ease-out !important;
     }
     
-    /* Data editor container glow */
+    /* Data editor container */
     [data-testid="stDataFrame"] {
-        box-shadow: 0 0 20px rgba(0, 255, 65, 0.15), inset 0 0 30px rgba(0, 0, 0, 0.5) !important;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.1) !important;
         border-radius: 8px !important;
         overflow: hidden;
     }
     
-    /* Action alert pulse animation */
+    /* Action alert - static glow (no continuous animation) */
     .action-alert {
-        animation: alertPulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes alertPulse {
-        0%, 100% { 
-            box-shadow: 0 0 20px rgba(255, 0, 64, 0.3);
-            border-color: #ff0040;
-        }
-        50% { 
-            box-shadow: 0 0 30px rgba(255, 0, 64, 0.5), 0 0 60px rgba(255, 0, 64, 0.2);
-            border-color: #ff4070;
-        }
+        box-shadow: 0 0 20px rgba(255, 0, 64, 0.3);
     }
     
     /* Loading/refresh spinner override */
