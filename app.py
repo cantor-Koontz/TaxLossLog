@@ -4,6 +4,7 @@ A multi-user tool for tracking 30-day wash sale periods.
 """
 
 import streamlit as st
+import pandas as pd
 from datetime import datetime, timedelta
 import database as db
 import time
@@ -18,8 +19,8 @@ st.set_page_config(
 # Matrix Theme CSS (matching Proxy Voting style)
 MATRIX_CSS = """
 <style>
-    /* Import Matrix-style font */
-    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+    /* Import Matrix-style fonts - distinctive typography */
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
     
     /* Remove top padding/margin */
     .block-container {
@@ -38,9 +39,63 @@ MATRIX_CSS = """
         display: none !important;
     }
     
-    /* Main app background */
+    /* Main app background with CRT effect */
     .stApp {
         background: linear-gradient(180deg, #000000 0%, #001a00 50%, #000000 100%);
+        cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><line x1="10" y1="0" x2="10" y2="20" stroke="%2300ff41" stroke-width="1"/><line x1="0" y1="10" x2="20" y2="10" stroke="%2300ff41" stroke-width="1"/><circle cx="10" cy="10" r="3" fill="none" stroke="%2300ff41" stroke-width="1"/></svg>') 10 10, crosshair;
+    }
+    
+    /* CRT Scanline overlay */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.15),
+            rgba(0, 0, 0, 0.15) 1px,
+            transparent 1px,
+            transparent 2px
+        );
+        pointer-events: none;
+        z-index: 9999;
+        animation: scanline-scroll 10s linear infinite;
+    }
+    
+    /* CRT noise/grain texture */
+    .stApp::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        opacity: 0.03;
+        pointer-events: none;
+        z-index: 9998;
+    }
+    
+    /* Scanline scroll animation */
+    @keyframes scanline-scroll {
+        0% { background-position: 0 0; }
+        100% { background-position: 0 100vh; }
+    }
+    
+    /* CRT screen curvature vignette */
+    .block-container::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%);
+        pointer-events: none;
+        z-index: 9997;
     }
     
     /* All text in Matrix green */
@@ -49,17 +104,19 @@ MATRIX_CSS = """
         font-family: 'Share Tech Mono', 'Courier New', monospace !important;
     }
     
-    /* Headers */
+    /* Headers - Orbitron for impact */
     .main-header {
         font-size: 2.5rem;
-        font-weight: 700;
+        font-weight: 900;
         color: #00ff41 !important;
-        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #00ff41;
+        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41, 0 0 80px #008f11;
         margin-bottom: 0.25rem;
         margin-top: 0 !important;
         padding-top: 0 !important;
-        font-family: 'Share Tech Mono', monospace !important;
-        letter-spacing: 3px;
+        font-family: 'Orbitron', 'Share Tech Mono', monospace !important;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        animation: header-flicker 4s infinite;
     }
     
     .sub-header {
@@ -67,6 +124,17 @@ MATRIX_CSS = """
         color: #008f11 !important;
         margin-bottom: 1.5rem;
         font-family: 'Share Tech Mono', monospace !important;
+        animation: fadeInUp 0.8s ease-out;
+    }
+    
+    /* Header flicker animation */
+    @keyframes header-flicker {
+        0%, 100% { opacity: 1; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41; }
+        92% { opacity: 1; }
+        93% { opacity: 0.8; text-shadow: 0 0 5px #00ff41; }
+        94% { opacity: 1; }
+        96% { opacity: 0.9; }
+        97% { opacity: 1; }
     }
     
     /* Sidebar styling */
@@ -79,22 +147,52 @@ MATRIX_CSS = """
         color: #00ff41 !important;
     }
     
-    /* Metric cards */
+    /* Metric cards with hover effects */
     [data-testid="stMetric"] {
         background: rgba(0, 255, 65, 0.05) !important;
         border: 1px solid #00ff41 !important;
         border-radius: 5px !important;
         padding: 15px !important;
         box-shadow: 0 0 10px rgba(0, 255, 65, 0.3) !important;
+        transition: all 0.3s ease !important;
+        animation: fadeInUp 0.6s ease-out backwards;
+    }
+    
+    [data-testid="stMetric"]:nth-child(1) { animation-delay: 0.1s; }
+    [data-testid="stMetric"]:nth-child(2) { animation-delay: 0.2s; }
+    [data-testid="stMetric"]:nth-child(3) { animation-delay: 0.3s; }
+    [data-testid="stMetric"]:nth-child(4) { animation-delay: 0.4s; }
+    
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-3px) scale(1.02) !important;
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.5), 0 5px 20px rgba(0, 0, 0, 0.3) !important;
+        border-color: #39ff14 !important;
     }
     
     [data-testid="stMetric"] label {
         color: #008f11 !important;
+        font-family: 'Orbitron', monospace !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 1px !important;
     }
     
     [data-testid="stMetric"] [data-testid="stMetricValue"] {
         color: #00ff41 !important;
         text-shadow: 0 0 5px #00ff41 !important;
+        font-family: 'Orbitron', monospace !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Fade in up animation */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     [data-testid="stMetric"] [data-testid="stMetricDelta"] {
@@ -122,19 +220,43 @@ MATRIX_CSS = """
         text-shadow: 0 0 5px #00ff41 !important;
     }
     
-    /* Buttons */
+    /* Buttons with enhanced interactions */
     .stButton > button {
         background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
         color: #00ff41 !important;
         border: 1px solid #00ff41 !important;
         font-family: 'Share Tech Mono', monospace !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+        transition: left 0.5s ease;
     }
     
     .stButton > button:hover {
         background: linear-gradient(180deg, #004400 0%, #002200 100%) !important;
-        box-shadow: 0 0 15px #00ff41 !important;
-        text-shadow: 0 0 5px #00ff41 !important;
+        box-shadow: 0 0 20px #00ff41, inset 0 0 10px rgba(0, 255, 65, 0.1) !important;
+        text-shadow: 0 0 10px #00ff41 !important;
+        transform: translateY(-2px);
+        border-color: #39ff14 !important;
+    }
+    
+    .stButton > button:hover::before {
+        left: 100%;
+    }
+    
+    .stButton > button:active {
+        transform: translateY(0) scale(0.98) !important;
+        box-shadow: 0 0 10px #00ff41 !important;
     }
     
     /* Input fields */
@@ -223,6 +345,31 @@ MATRIX_CSS = """
         padding: 10px 15px !important;
         margin: 5px 0 !important;
         color: #00ff41 !important;
+        transition: all 0.3s ease !important;
+        position: relative;
+    }
+    
+    .action-item:hover {
+        background: rgba(255, 0, 64, 0.1) !important;
+        border-left-width: 5px !important;
+        transform: translateX(5px);
+        box-shadow: 0 0 15px rgba(255, 0, 64, 0.2) !important;
+    }
+    
+    .action-item::after {
+        content: '▶';
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #ff0040;
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .action-item:hover::after {
+        opacity: 1;
+        transform: translateY(-50%) translateX(5px);
     }
     
     /* Checkbox styling */
@@ -312,6 +459,221 @@ MATRIX_CSS = """
     @keyframes pulse {
         0%, 100% { opacity: 1; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41; }
         50% { opacity: 0.7; text-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41; }
+    }
+    
+    /* Row entrance animations */
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Staggered row animations for forms */
+    .stForm > div > div {
+        animation: slideInRight 0.4s ease-out backwards;
+    }
+    
+    .stForm > div > div:nth-child(1) { animation-delay: 0.05s; }
+    .stForm > div > div:nth-child(2) { animation-delay: 0.1s; }
+    .stForm > div > div:nth-child(3) { animation-delay: 0.15s; }
+    .stForm > div > div:nth-child(4) { animation-delay: 0.2s; }
+    .stForm > div > div:nth-child(5) { animation-delay: 0.25s; }
+    
+    /* Section headers with glow */
+    h3, .stMarkdown h3 {
+        color: #00ff41 !important;
+        font-family: 'Orbitron', monospace !important;
+        text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        letter-spacing: 2px;
+        border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+        padding-bottom: 0.5rem;
+        animation: fadeInUp 0.5s ease-out;
+    }
+    
+    /* Horizontal rule styling */
+    hr {
+        border: none !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, transparent, #00ff41, transparent) !important;
+        margin: 1.5rem 0 !important;
+        animation: hrGlow 2s ease-in-out infinite;
+    }
+    
+    @keyframes hrGlow {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; box-shadow: 0 0 10px #00ff41; }
+    }
+    
+    /* Caption/timestamp styling */
+    .stCaption, small {
+        color: #006400 !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 1px;
+    }
+    
+    /* Selection highlight color */
+    ::selection {
+        background: #00ff41 !important;
+        color: #000000 !important;
+    }
+    
+    /* Focus states */
+    *:focus {
+        outline: 1px solid #00ff41 !important;
+        outline-offset: 2px;
+    }
+    
+    /* Tooltip styling */
+    [data-baseweb="tooltip"] {
+        background: #001a00 !important;
+        border: 1px solid #00ff41 !important;
+        color: #00ff41 !important;
+    }
+    
+    /* Data Editor (Excel-like grid) styling */
+    [data-testid="stDataFrame"],
+    [data-testid="stDataFrameResizable"] {
+        border: 1px solid #00ff41 !important;
+        border-radius: 5px !important;
+    }
+    
+    [data-testid="stDataFrame"] > div,
+    [data-testid="stDataFrameResizable"] > div {
+        background: #001a00 !important;
+    }
+    
+    /* Grid header cells */
+    .dvn-scroller .ch {
+        background: linear-gradient(180deg, #003300 0%, #001a00 100%) !important;
+        color: #00ff41 !important;
+        font-family: 'Share Tech Mono', monospace !important;
+        border-bottom: 1px solid #00ff41 !important;
+    }
+    
+    /* Grid data cells */
+    .dvn-scroller .cc {
+        background: #001100 !important;
+        color: #00ff41 !important;
+        font-family: 'Share Tech Mono', monospace !important;
+        border-color: #003300 !important;
+    }
+    
+    /* Selected/focused cell */
+    .dvn-scroller .cc.selected,
+    .dvn-scroller .cc:focus {
+        background: rgba(0, 255, 65, 0.15) !important;
+        border: 1px solid #00ff41 !important;
+        box-shadow: 0 0 5px #00ff41 !important;
+    }
+    
+    /* Hover effect on cells */
+    .dvn-scroller .cc:hover {
+        background: rgba(0, 255, 65, 0.1) !important;
+    }
+    
+    /* Grid scrollbar */
+    .dvn-scroller::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .dvn-scroller::-webkit-scrollbar-track {
+        background: #001100;
+    }
+    
+    .dvn-scroller::-webkit-scrollbar-thumb {
+        background: #00ff41;
+        border-radius: 4px;
+    }
+    
+    /* Glidedata grid overrides - Matrix theme */
+    .glideDataEditor {
+        --gdg-bg-cell: #001100 !important;
+        --gdg-bg-header: #002200 !important;
+        --gdg-bg-header-has-focus: #003300 !important;
+        --gdg-text-dark: #00ff41 !important;
+        --gdg-text-medium: #00ff41 !important;
+        --gdg-text-light: #008f11 !important;
+        --gdg-border-color: #003300 !important;
+        --gdg-accent-color: #00ff41 !important;
+        --gdg-accent-light: rgba(0, 255, 65, 0.2) !important;
+        animation: fadeInUp 0.6s ease-out !important;
+    }
+    
+    /* Data editor container glow */
+    [data-testid="stDataFrame"] {
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.15), inset 0 0 30px rgba(0, 0, 0, 0.5) !important;
+        border-radius: 8px !important;
+        overflow: hidden;
+    }
+    
+    /* Action alert pulse animation */
+    .action-alert {
+        animation: alertPulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes alertPulse {
+        0%, 100% { 
+            box-shadow: 0 0 20px rgba(255, 0, 64, 0.3);
+            border-color: #ff0040;
+        }
+        50% { 
+            box-shadow: 0 0 30px rgba(255, 0, 64, 0.5), 0 0 60px rgba(255, 0, 64, 0.2);
+            border-color: #ff4070;
+        }
+    }
+    
+    /* Loading/refresh spinner override */
+    .stSpinner > div {
+        border-color: #00ff41 transparent transparent transparent !important;
+    }
+    
+    /* Matrix "digital rain" decorative element */
+    .matrix-rain {
+        position: fixed;
+        top: 0;
+        right: 20px;
+        width: 30px;
+        height: 100vh;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.1;
+    }
+    
+    /* Checkbox Matrix style */
+    .stCheckbox label span[data-baseweb="checkbox"] {
+        border-color: #00ff41 !important;
+        background: #001a00 !important;
+    }
+    
+    .stCheckbox label span[data-baseweb="checkbox"][aria-checked="true"] {
+        background: #00ff41 !important;
+        border-color: #00ff41 !important;
+    }
+    
+    /* Toast notifications */
+    .stToast {
+        background: #001a00 !important;
+        border: 1px solid #00ff41 !important;
+        color: #00ff41 !important;
+    }
+    
+    /* Link styling */
+    a {
+        color: #39ff14 !important;
+        text-decoration: none !important;
+        transition: all 0.2s ease;
+    }
+    
+    a:hover {
+        color: #00ff41 !important;
+        text-shadow: 0 0 10px #00ff41;
     }
 </style>
 """
@@ -521,7 +883,7 @@ def main():
                     st.success(f"SUCCESS: ENTRY INSERTED FOR ACCOUNT {account}")
                 st.rerun()
     
-    # Active Entries Table (non-completed only)
+    # Active Entries Table (non-completed only) - EXCEL-LIKE GRID
     st.markdown("---")
     st.markdown("### 📋 ACTIVE ENTRIES")
     
@@ -553,128 +915,217 @@ def main():
     else:
         entries = db.get_entries_by_status(filter_status.lower())
     
-    # Display entries
+    # Display entries using data_editor (Excel-like grid)
     if entries:
-        st.caption(f">> Displaying {len(entries)} entries")
+        st.caption(f">> Displaying {len(entries)} entries // Click cells to edit inline")
         
-        # Get account entry counts
-        account_counts = db.get_all_account_counts()
-        
-        # Column headers
-        hcol1, hcol2, hcol3, hcol4, hcol5, hcol6, hcol7, hcol8, hcol9, hcol10 = st.columns([1.1, 1.1, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.6, 0.4])
-        with hcol1:
-            st.markdown("**STATUS**")
-        with hcol2:
-            st.markdown("**ACCT**")
-        with hcol3:
-            st.markdown("**TICKERS**")
-        with hcol4:
-            st.markdown("**HELD**")
-        with hcol5:
-            st.markdown("**BROKER**")
-        with hcol6:
-            st.markdown("**SOLD**")
-        with hcol7:
-            st.markdown("**READY**")
-        with hcol8:
-            st.markdown("**DAYS**")
-        with hcol9:
-            st.markdown("**DOCS**")
-        with hcol10:
-            st.markdown("**DEL**")
-        
-        st.markdown("---")
-        
+        # Prepare DataFrame for display
+        df_data = []
         for entry in entries:
             days = calculate_days_remaining(entry["target_date"])
-            date_status = get_status_display(days, bool(entry["completed"]))
             current_status = entry.get('status', 'pending') or 'pending'
             
-            # Format days display
-            if current_status == 'completed':
-                days_display = "---"
-            elif days == 0:
-                days_display = "NOW!"
-            elif days < 0:
-                days_display = f"+{abs(days)}"
+            # Map status to display
+            status_map = {'pending': '🔴 Pending', 'in_progress': '🟡 In Progress', 'completed': '✅ Done'}
+            status_display = status_map.get(current_status, '🔴 Pending')
+            
+            # Calculate days display
+            if days <= 0:
+                days_display = f"READY (+{abs(days)})" if days < 0 else "READY NOW"
             else:
-                days_display = str(days)
+                days_display = f"{days} days"
             
-            # Get attachments for this entry
-            entry_attachments = db.get_attachments(entry['id'])
+            # Convert sell_date string to date object for DateColumn compatibility
+            try:
+                sell_date_obj = datetime.strptime(entry['sell_date'], "%Y-%m-%d").date()
+            except:
+                sell_date_obj = datetime.now().date()
             
-            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([1.1, 1.1, 1.6, 0.9, 0.9, 0.9, 0.9, 0.5, 0.6, 0.4])
+            df_data.append({
+                'id': entry['id'],
+                'STATUS': status_display,
+                'ACCOUNT': entry['account'],
+                'TICKERS': entry['tickers'],
+                'HELD IN': entry['held_in'],
+                'BROKER': entry.get('broker', ''),
+                'SELL DATE': sell_date_obj,
+                'READY DATE': entry['target_date'],
+                'DAYS': days_display,
+                'NOTES': entry.get('comments', '') or ''
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Store original for comparison
+        if 'original_df' not in st.session_state:
+            st.session_state.original_df = df.copy()
+        
+        # Column configuration for the grid
+        column_config = {
+            "id": None,  # Hide ID column
+            "STATUS": st.column_config.SelectboxColumn(
+                "STATUS",
+                options=["🔴 Pending", "🟡 In Progress", "✅ Done"],
+                width="small",
+                required=True
+            ),
+            "ACCOUNT": st.column_config.TextColumn(
+                "ACCOUNT",
+                width="small",
+                required=True
+            ),
+            "TICKERS": st.column_config.TextColumn(
+                "TICKERS",
+                width="medium",
+                required=True
+            ),
+            "HELD IN": st.column_config.TextColumn(
+                "HELD IN",
+                width="small",
+                required=True
+            ),
+            "BROKER": st.column_config.SelectboxColumn(
+                "BROKER",
+                options=["", "UBS", "SCHWAB", "JMS", "JANNEY", "WELLS FARGO", "MAC"],
+                width="small"
+            ),
+            "SELL DATE": st.column_config.DateColumn(
+                "SELL DATE",
+                format="YYYY-MM-DD",
+                width="small"
+            ),
+            "READY DATE": st.column_config.TextColumn(
+                "READY DATE",
+                width="small",
+                disabled=True  # Calculated field
+            ),
+            "DAYS": st.column_config.TextColumn(
+                "DAYS",
+                width="small",
+                disabled=True  # Calculated field
+            ),
+            "NOTES": st.column_config.TextColumn(
+                "NOTES",
+                width="medium"
+            )
+        }
+        
+        # The editable grid
+        edited_df = st.data_editor(
+            df,
+            column_config=column_config,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="fixed",  # Don't allow adding rows here (use form above)
+            key="entries_grid"
+        )
+        
+        # Check for changes and update database
+        # Use try-except to handle type comparison issues
+        try:
+            has_changes = False
+            for idx in range(len(edited_df)):
+                row = edited_df.iloc[idx]
+                orig_row = df.iloc[idx]
+                entry_id = int(row['id'])
+                
+                # Safely convert values to strings for comparison
+                row_status = str(row['STATUS']) if row['STATUS'] is not None else ''
+                orig_status = str(orig_row['STATUS']) if orig_row['STATUS'] is not None else ''
+                row_account = str(row['ACCOUNT']) if row['ACCOUNT'] is not None else ''
+                orig_account = str(orig_row['ACCOUNT']) if orig_row['ACCOUNT'] is not None else ''
+                row_tickers = str(row['TICKERS']) if row['TICKERS'] is not None else ''
+                orig_tickers = str(orig_row['TICKERS']) if orig_row['TICKERS'] is not None else ''
+                row_held = str(row['HELD IN']) if row['HELD IN'] is not None else ''
+                orig_held = str(orig_row['HELD IN']) if orig_row['HELD IN'] is not None else ''
+                row_broker = str(row['BROKER']) if row['BROKER'] is not None else ''
+                orig_broker = str(orig_row['BROKER']) if orig_row['BROKER'] is not None else ''
+                row_sell = str(row['SELL DATE'])[:10] if row['SELL DATE'] is not None else ''
+                orig_sell = str(orig_row['SELL DATE'])[:10] if orig_row['SELL DATE'] is not None else ''
+                row_notes = str(row['NOTES']) if row['NOTES'] is not None else ''
+                orig_notes = str(orig_row['NOTES']) if orig_row['NOTES'] is not None else ''
+                
+                # Check if status changed
+                if row_status != orig_status:
+                    has_changes = True
+                    status_map_reverse = {'🔴 Pending': 'pending', '🟡 In Progress': 'in_progress', '✅ Done': 'completed'}
+                    new_status = status_map_reverse.get(row_status, 'pending')
+                    
+                    # Update status directly
+                    completed = 1 if new_status == 'completed' else 0
+                    completed_date = datetime.now().strftime("%Y-%m-%d") if completed else None
+                    
+                    with db.get_connection() as conn:
+                        conn.execute("""
+                            UPDATE entries 
+                            SET status = ?, completed = ?, completed_date = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        """, (new_status, completed, completed_date, entry_id))
+                
+                # Check if other fields changed
+                if (row_account != orig_account or 
+                    row_tickers != orig_tickers or 
+                    row_held != orig_held or
+                    row_broker != orig_broker or
+                    row_sell != orig_sell or
+                    row_notes != orig_notes):
+                    
+                    has_changes = True
+                    db.update_entry(
+                        entry_id=entry_id,
+                        account=row_account,
+                        tickers=row_tickers,
+                        held_in=row_held,
+                        sell_date=row_sell if row_sell else orig_sell,
+                        broker=row_broker,
+                        comments=row_notes
+                    )
             
-            with col1:
-                # Status button - click to cycle: Pending → In Progress → Completed
-                if current_status == 'pending':
-                    if st.button("🔴 Pending", key=f"tbl_status_{entry['id']}", help="Click → In Progress"):
-                        db.cycle_status(entry['id'])
-                        st.rerun()
-                elif current_status == 'in_progress':
-                    if st.button("🟡 In Prog", key=f"tbl_status_{entry['id']}", help="Click → Completed"):
-                        db.cycle_status(entry['id'])
-                        st.rerun()
-                else:  # completed
-                    st.markdown("✅ Done")
-            
-            with col2:
-                # Show account with entry count
-                acct_upper = entry['account'].upper()
-                entry_count = account_counts.get(acct_upper, 1)
-                if entry_count > 1:
-                    st.markdown(f"**{entry['account']}** :orange[(x{entry_count})]")
-                else:
-                    st.markdown(f"**{entry['account']}**")
-            
-            with col3:
-                st.code(entry['tickers'])
-            
-            with col4:
-                st.markdown(entry["held_in"])
-            
-            with col5:
-                st.markdown(entry.get("broker", ""))
-            
-            with col6:
-                st.markdown(entry["sell_date"])
-            
-            with col7:
-                st.markdown(entry["target_date"])
-            
-            with col8:
-                # Days display with color based on date status
-                if days_display == "NOW!":
-                    st.markdown(f"**:red[{days_display}]**")
-                elif date_status == "READY":
-                    st.markdown(f":green[{days_display}]")
-                elif date_status == "WAITING":
-                    st.markdown(f":orange[{days_display}]")
-                else:
-                    st.markdown(days_display)
-            
-            with col9:
-                # Direct download button for attachments
-                if entry_attachments:
-                    att = entry_attachments[0]  # Most recent attachment
-                    filename, ftype, fdata = db.get_attachment_data(att['id'])
-                    if fdata:
-                        st.download_button(
-                            f"📎({len(entry_attachments)})" if len(entry_attachments) > 1 else "📎",
-                            data=fdata,
-                            file_name=filename,
-                            mime=ftype or "application/octet-stream",
-                            key=f"dl_{entry['id']}",
-                            help=f"Download: {filename}"
-                        )
-                else:
-                    st.markdown(":gray[—]")
-            
-            with col10:
-                if st.button("X", key=f"del_{entry['id']}"):
-                    db.delete_attachments_for_entry(entry["id"])  # Delete attachments first
-                    db.delete_entry(entry["id"])
-                    st.rerun()
+            if has_changes:
+                st.rerun()
+        except Exception as e:
+            st.error(f"Error updating entry: {str(e)}")
+        
+        # Attachment and Delete buttons row (outside the grid)
+        st.markdown("##### 📎 Manage Attachments & Delete")
+        
+        # Create columns for attachment/delete controls
+        num_entries = len(entries)
+        cols_per_row = 4
+        
+        for i in range(0, num_entries, cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j, col in enumerate(cols):
+                if i + j < num_entries:
+                    entry = entries[i + j]
+                    entry_attachments = db.get_attachments(entry['id'])
+                    
+                    with col:
+                        with st.container():
+                            st.caption(f"**{entry['account']}** - {entry['tickers'][:15]}...")
+                            btn_col1, btn_col2 = st.columns(2)
+                            
+                            with btn_col1:
+                                if entry_attachments:
+                                    att = entry_attachments[0]
+                                    filename, ftype, fdata = db.get_attachment_data(att['id'])
+                                    if fdata:
+                                        st.download_button(
+                                            f"📎 {len(entry_attachments)}",
+                                            data=fdata,
+                                            file_name=filename,
+                                            mime=ftype or "application/octet-stream",
+                                            key=f"dl_{entry['id']}",
+                                            use_container_width=True
+                                        )
+                                else:
+                                    st.button("📎 0", key=f"no_dl_{entry['id']}", disabled=True, use_container_width=True)
+                            
+                            with btn_col2:
+                                if st.button("🗑️", key=f"del_{entry['id']}", use_container_width=True):
+                                    db.delete_attachments_for_entry(entry["id"])
+                                    db.delete_entry(entry["id"])
+                                    st.rerun()
         
         st.markdown("---")
         st.caption(f">> Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -691,7 +1142,7 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    # Completed Entries Section
+    # Completed Entries Section - GRID VIEW
     st.markdown("---")
     completed_entries = db.get_entries_by_status("completed")
     
@@ -702,41 +1153,62 @@ def main():
         show_completed = st.checkbox("Show completed entries", value=False, key="show_completed")
         
         if show_completed:
-            # Get account counts
-            completed_account_counts = db.get_all_account_counts()
-            
+            # Prepare DataFrame for completed entries
+            completed_data = []
             for entry in completed_entries:
-                col1, col2, col3, col4, col5, col6, col7 = st.columns([1.1, 1, 1.6, 1, 1, 1.3, 0.5])
-                
-                with col1:
-                    # Status button - click to move back to Pending
-                    if st.button("✅ Done", key=f"comp_status_{entry['id']}", help="Click → Back to Pending"):
-                        db.cycle_status(entry['id'])
-                        st.rerun()
-                
-                with col2:
-                    acct_count = completed_account_counts.get(entry['account'].upper(), 1)
-                    count_text = f" (x{acct_count})" if acct_count > 1 else ""
-                    st.markdown(f":gray[{entry['account']}{count_text}]")
-                
-                with col3:
-                    st.markdown(f":gray[{entry['tickers']}]")
-                
-                with col4:
-                    st.markdown(f":gray[{entry['held_in']}]")
-                
-                with col5:
-                    st.markdown(f":gray[{entry.get('broker', '')}]")
-                
-                with col6:
-                    completed_date = entry.get('completed_date', 'N/A')
-                    st.markdown(f":gray[Done: {completed_date}]")
-                
-                with col7:
-                    if st.button("X", key=f"del_completed_{entry['id']}"):
-                        db.delete_attachments_for_entry(entry["id"])
-                        db.delete_entry(entry["id"])
-                        st.rerun()
+                completed_data.append({
+                    'id': entry['id'],
+                    'ACCOUNT': entry['account'],
+                    'TICKERS': entry['tickers'],
+                    'HELD IN': entry['held_in'],
+                    'BROKER': entry.get('broker', ''),
+                    'SELL DATE': entry['sell_date'],
+                    'COMPLETED': entry.get('completed_date', 'N/A')
+                })
+            
+            completed_df = pd.DataFrame(completed_data)
+            
+            # Column configuration for completed grid (read-only)
+            completed_column_config = {
+                "id": None,  # Hide ID column
+                "ACCOUNT": st.column_config.TextColumn("ACCOUNT", width="small"),
+                "TICKERS": st.column_config.TextColumn("TICKERS", width="medium"),
+                "HELD IN": st.column_config.TextColumn("HELD IN", width="small"),
+                "BROKER": st.column_config.TextColumn("BROKER", width="small"),
+                "SELL DATE": st.column_config.TextColumn("SELL DATE", width="small"),
+                "COMPLETED": st.column_config.TextColumn("COMPLETED", width="small")
+            }
+            
+            # Display as read-only dataframe
+            st.dataframe(
+                completed_df,
+                column_config=completed_column_config,
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Action buttons for completed entries
+            st.markdown("##### Actions")
+            cols_per_row = 6
+            num_completed = len(completed_entries)
+            
+            for i in range(0, num_completed, cols_per_row):
+                cols = st.columns(cols_per_row)
+                for j, col in enumerate(cols):
+                    if i + j < num_completed:
+                        entry = completed_entries[i + j]
+                        with col:
+                            st.caption(f"{entry['account']}")
+                            btn1, btn2 = st.columns(2)
+                            with btn1:
+                                if st.button("↩️", key=f"reopen_{entry['id']}", help="Reopen"):
+                                    db.cycle_status(entry['id'])
+                                    st.rerun()
+                            with btn2:
+                                if st.button("🗑️", key=f"del_comp_{entry['id']}", help="Delete"):
+                                    db.delete_attachments_for_entry(entry["id"])
+                                    db.delete_entry(entry["id"])
+                                    st.rerun()
             
             st.caption(f">> {len(completed_entries)} completed entries")
     
